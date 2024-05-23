@@ -1,0 +1,50 @@
+/*
+Your task is to create a ERC20 token and deploy it on the Avalanche network for Degen Gaming. 
+The smart contract should have the following functionality:
+
+1. Minting new tokens: The platform should be able to create new tokens and distribute them to players as rewards. Only the owner can mint tokens.
+2. Transferring tokens: Players should be able to transfer their tokens to others.
+3. Redeeming tokens: Players should be able to redeem their tokens for items in the in-game store.
+4. Checking token balance: Players should be able to check their token balance at any time.
+5. Burning tokens: Anyone should be able to burn tokens, that they own, that are no longer needed.
+*/
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol";
+import "contracts/ownable.sol";
+
+contract DegenToken is ERC20, Ownable {
+    mapping(uint256 => uint256) public powerCost;
+
+    event PowerRedeemed(address indexed player, uint256 indexed powerId, uint256 powerCost);
+
+    constructor(uint256 initialSupply) ERC20("Degen", "DGN") {
+        _mint(msg.sender, initialSupply * 10 ** decimals());
+        powerCost[1] = 200; // Attack all enemies that will inflict 50% damage for 200 points (tokens)
+        powerCost[2] = 400; // Attack one enemy but 70% damage will inflict for 400 points (tokens)
+        powerCost[3] = 600; // Heal 50% of HP (health Points) for 600 points (tokens)
+    }
+    function mint(address account, uint256 amount) external onlyOwner {
+        _mint(account, amount);
+    }
+
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+
+    function setItemPrice(uint256 powerId, uint256 price) external onlyOwner {
+        powerCost[powerId] = price;
+    }
+
+    function redeemItem(uint256 powerId) external {
+        // Make sure the power cost is set and player has enough points to purchase powers
+        require(powerCost[powerId] > 0, "powerCost is not yet set.");
+        require(balanceOf(msg.sender) >= powerCost[powerId], "Insufficient points");
+
+        // Transfer points (token) from player to owner
+        _transfer(msg.sender, owner, powerCost[powerId]);
+        emit PowerRedeemed(msg.sender, powerId, powerCost[powerId]);
+    }
+}
